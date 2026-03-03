@@ -1,0 +1,82 @@
+# General
+command_prefix: racc
+default_backend: runpod
+rate_limit_seconds: 10
+
+# Room whitelist — if non-empty, the bot only responds in these rooms.
+# Use Matrix room IDs (e.g. "!abc123:example.com").
+# Leave empty to allow all rooms.
+room_whitelist: []
+
+# LLM (OpenRouter)
+llm:
+    api_key: ""
+    base_url: "https://openrouter.ai/api/v1/chat/completions"
+    default_preset: dormouse
+    max_retries: 3
+    max_tokens: 400
+    presets:
+        dormouse:
+            model: "google/gemini-2.0-flash-001"
+            system_prompt: "You are an image prompt generator. Describe the scene in detail."
+            temperature: 1.0
+            max_tokens: 400
+            reasoning_enabled: false
+        fossa:
+            model: "anthropic/claude-3.5-sonnet"
+            system_prompt: "You are an image prompt generator. Focus on atmosphere and mood."
+            temperature: 1.2
+            max_tokens: 400
+            reasoning_enabled: false
+        hippo:
+            model: "openai/gpt-4o"
+            system_prompt: "You are an image prompt generator. Emphasize action and dynamism."
+            temperature: 0.9
+            max_tokens: 400
+            reasoning_enabled: false
+
+# Common Prompt Settings
+prompt:
+    prefix_prompt: ""
+    suffix_prompt: ""
+    banned_words: []
+
+# NovelAI Backend
+nai:
+    enabled: false
+    api_key: ""
+    model: "nai-diffusion-4-5-full"
+    default_size: "1216x832"
+    steps: 28
+    scale: 5.0
+    sampler: "k_euler_ancestral"
+    scheduler: "karras"
+    quality_toggle: true
+    decrisper: false
+    sm: false
+    sm_dyn: false
+    seed: -1                     # -1 = random, or a fixed seed number
+    uc_preset: 2
+    cfg_rescale: 0.0
+    negative_prompt: ""
+    max_pixels: 1048576
+    max_steps: 28
+    style_text: ""
+    prefix_prompt: ""
+    suffix_prompt: ""
+
+# RunPod/ComfyUI Backend
+runpod:
+    enabled: true
+    api_key: ""
+    worker_id: ""
+    default_size: "1216x832"
+    batch_mode: "sequential"
+    max_batch: 4
+    poll_interval: 2.0
+    poll_timeout: 120.0
+    # Absolute path to an external ComfyUI workflow JSON file.
+    comfyui_workflow_file: ""
+    style_text: ""
+    prefix_prompt: ""
+    suffix_prompt: ""
