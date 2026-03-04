@@ -28,6 +28,7 @@ class LLMClient:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
+            #"X-OpenRouter-Title": "racconic",
         }
 
         payload: dict = {

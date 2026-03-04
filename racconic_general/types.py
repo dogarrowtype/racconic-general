@@ -30,6 +30,7 @@ class GenerationRequest:
     height: Optional[int] = None
     batch_count: int = 1
     is_raw: bool = False
+    errors: list[str] = field(default_factory=list)
 
 
 @dataclass

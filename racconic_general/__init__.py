@@ -90,6 +90,13 @@ class RacconicBot(Plugin):
             return True
         return room_id in whitelist
 
+    async def _try_react(self, evt: MessageEvent, emoji: str) -> None:
+        """Send a reaction, swallowing errors so responses aren't blocked."""
+        try:
+            await evt.react(emoji)
+        except Exception:
+            self.log.debug("Failed to react with %s", emoji)
+
     def _check_cooldown(self, room_id: str) -> Optional[float]:
         """Return seconds remaining if on cooldown, else None."""
         limit = self.config["rate_limit_seconds"]
@@ -129,6 +136,16 @@ class RacconicBot(Plugin):
 
         # Check for reply context when text is also provided (flags only, no prompt text)
         request = input_parser.parse(raw_input)
+
+        if request.errors:
+            prefix = self.config["command_prefix"]
+            error_lines = "\n\n".join(f"- {e}" for e in request.errors)
+            await evt.respond(
+                f"~**Oops!** Something looks off:\n\n{error_lines}\n\n"
+                f"Try `!{prefix} help` for usage info."
+            )
+            return
+
         if not request.prompt_text:
             reply_to = evt.content.get_reply_to()
             if reply_to:
@@ -162,7 +179,7 @@ class RacconicBot(Plugin):
             width, height = backend.default_size()
 
         # Progress indicator
-        await evt.react("\u23f3")  # hourglass
+        await self._try_react(evt, "\u23f3")  # hourglass
 
         try:
             # Generate prompt
@@ -183,21 +200,21 @@ class RacconicBot(Plugin):
             )
 
             if result.error:
-                await evt.react("\u274c")  # red X
+                await self._try_react(evt, "\u274c")  # red X
                 await evt.respond(f"~Generation failed: {result.error}")
                 return
 
             if not result.images:
-                await evt.react("\u274c")
+                await self._try_react(evt, "\u274c")
                 await evt.respond("~No images were generated.")
                 return
 
-            await evt.react("\u2705")  # green check
+            await self._try_react(evt, "\u2705")  # green check
             await image_sender.send_images(self.client, evt, result)
 
         except Exception:
             self.log.exception("Unhandled error during generation")
-            await evt.react("\u274c")
+            await self._try_react(evt, "\u274c")
             await evt.respond("~An unexpected error occurred. Check logs for details.")
 
     @racc.subcommand(help="Show usage information")
@@ -205,18 +222,25 @@ class RacconicBot(Plugin):
         prefix = self.config["command_prefix"]
         await evt.respond(
             f"~**Racconic Image Generator**\n\n"
-            f"**Generate an image:**\n"
-            f"`!{prefix} [flags] <prompt text>`\n"
-            f"Or reply to a message with `!{prefix}`\n\n"
-            f"**Flags:**\n"
-            f"- Preset: `--dormouse` / `-d`, `--fossa` / `-f`, `--hippo` / `-h`, `--raw` / `-r`\n"
-            f"- Backend: `--nai` / `-n`, `--runpod` / `-rp`\n"
-            f"- Style: `--style N` / `-s N` (1-based, `0` = none)\n"
-            f"- Size: `--size WIDTHxHEIGHT`\n"
-            f"- Batch: `--batch N` / `-b N` (1-4, RunPod only)\n\n"
-            f"**Subcommands:**\n"
-            f"`!{prefix} styles [nai|runpod]` — list styles\n"
-            f"`!{prefix} presets` — list LLM presets\n"
+            f"**How to use:**\n\n"
+            f"`!{prefix} <prompt>` — describe what you want to see\n\n"
+            f"`!{prefix} -f a raccoon eating pizza` — use a preset + your prompt\n\n"
+            f"You can also reply to any message with `!{prefix}` to use that message as the prompt.\n\n"
+            f"**Presets** (changes how the AI rewrites your prompt):\n\n"
+            f"`-d` or `--dormouse` — dormouse style\n\n"
+            f"`-f` or `--fossa` — fossa style\n\n"
+            f"`-h` or `--hippo` — hippo style\n\n"
+            f"`-r` or `--raw` — skip the AI, send your prompt exactly as-is\n\n"
+            f"**Backend** (which image generator to use):\n\n"
+            f"`-n` or `--nai` — use NovelAI\n\n"
+            f"`-rp` or `--runpod` — use RunPod/ComfyUI\n\n"
+            f"**Extra options:**\n\n"
+            f"`-s N` or `--style N` — pick a specific style by number (use `0` for no style)\n\n"
+            f"`--size WIDTHxHEIGHT` — set image size, e.g. `--size 1024x768`\n\n"
+            f"`-b N` or `--batch N` — generate multiple images at once (1-4, RunPod only)\n\n"
+            f"**Subcommands:**\n\n"
+            f"`!{prefix} styles [nai|runpod]` — list available styles\n\n"
+            f"`!{prefix} presets` — list LLM presets\n\n"
             f"`!{prefix} status` — show backend status"
         )
 

@@ -23,6 +23,7 @@ class RunPodBackend(ImageBackend):
         self.http = http
         self.cfg = config
         self._workflow_cache: Optional[dict] = None
+        self._queue_lock = asyncio.Lock()
 
     def default_size(self) -> tuple[int, int]:
         return _parse_dimensions(self.cfg.get("default_size", "1216x832"))
@@ -78,22 +79,35 @@ class RunPodBackend(ImageBackend):
         batch = max(1, min(batch, max_batch))
         batch_mode = self.cfg.get("batch_mode", "sequential")
 
-        if batch_mode == "sequential" and batch > 1:
-            return await self._generate_sequential(prompt, width, height, batch, api_key, worker_id)
-        return await self._generate_single(prompt, width, height, batch, api_key, worker_id)
+        if batch_mode == "sequential":
+            return await self._generate_batch(prompt, width, height, batch, api_key, worker_id, parallel=False)
+        return await self._generate_batch(prompt, width, height, batch, api_key, worker_id, parallel=True)
 
     # -- internal ------------------------------------------------------------
 
-    async def _generate_sequential(
+    async def _generate_batch(
         self, prompt: str, width: int, height: int, batch: int,
-        api_key: str, worker_id: str,
+        api_key: str, worker_id: str, *, parallel: bool,
     ) -> GenerationResult:
-        """Make N parallel single-image requests."""
-        tasks = [
-            self._generate_single(prompt, width, height, 1, api_key, worker_id)
-            for _ in range(batch)
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        """Generate N single-image requests, either sequentially or in parallel.
+
+        Sequential: acquires global lock, sends one request at a time (cheaper, one worker).
+        Parallel: sends all requests concurrently (faster, spins up multiple workers).
+        """
+        if parallel:
+            tasks = [
+                self._generate_single(prompt, width, height, 1, api_key, worker_id)
+                for _ in range(batch)
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        else:
+            results = []
+            for _ in range(batch):
+                async with self._queue_lock:
+                    try:
+                        results.append(await self._generate_single(prompt, width, height, 1, api_key, worker_id))
+                    except Exception as exc:
+                        results.append(exc)
 
         images: list[bytes] = []
         errors: list[str] = []

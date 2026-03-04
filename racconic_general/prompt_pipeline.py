@@ -96,17 +96,18 @@ class PromptPipeline:
 
     async def generate(self, request: GenerationRequest, backend_key: str) -> str:
         """Run the full pipeline and return the final prompt string."""
+        # Raw mode: skip LLM and all post-processing, send text as-is
+        if request.is_raw:
+            return request.prompt_text
+
         backend_cfg = self.config[backend_key]
         prompt_cfg = self.config["prompt"]
 
-        if request.is_raw:
+        preset = self._resolve_preset(request.preset_name)
+        raw = await self.llm.generate_prompt(preset, request.prompt_text)
+        if not raw:
+            log.warning("LLM returned nothing; using raw text as fallback")
             raw = request.prompt_text
-        else:
-            preset = self._resolve_preset(request.preset_name)
-            raw = await self.llm.generate_prompt(preset, request.prompt_text)
-            if not raw:
-                log.warning("LLM returned nothing; using raw text as fallback")
-                raw = request.prompt_text
 
         raw = clean_prompt(raw)
         raw = filter_banned_words(raw, prompt_cfg.get("banned_words", []))
