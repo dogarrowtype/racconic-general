@@ -148,7 +148,8 @@ class NovelAIBackend(ImageBackend):
 
                     # Delay before allowing next request to avoid rate limits
                     await asyncio.sleep(QUEUE_PROCESSING_DELAY)
-                    return GenerationResult(images=[image], prompt_used=prompt, backend="nai")
+                    return GenerationResult(images=[image], prompt_used=prompt, backend="nai",
+                                            width=width, height=height)
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
                 log.warning("NovelAI request failed (attempt %d/%d): %s", attempt, MAX_RETRIES, exc)

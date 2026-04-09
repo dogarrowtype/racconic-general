@@ -39,3 +39,5 @@ class GenerationResult:
     prompt_used: str
     backend: str
     error: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None

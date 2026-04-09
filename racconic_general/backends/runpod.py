@@ -124,7 +124,8 @@ class RunPodBackend(ImageBackend):
                 images=[], prompt_used=prompt, backend="runpod",
                 error=f"All {batch} batch requests failed: {'; '.join(errors)}",
             )
-        return GenerationResult(images=images, prompt_used=prompt, backend="runpod")
+        return GenerationResult(images=images, prompt_used=prompt, backend="runpod",
+                                width=width, height=height)
 
     async def _generate_single(
         self, prompt: str, width: int, height: int, batch_size: int,
@@ -192,7 +193,8 @@ class RunPodBackend(ImageBackend):
                     images=[], prompt_used=prompt, backend="runpod",
                     error="Failed to decode any images",
                 )
-            return GenerationResult(images=images, prompt_used=prompt, backend="runpod")
+            return GenerationResult(images=images, prompt_used=prompt, backend="runpod",
+                                width=width, height=height)
 
         except Exception as exc:
             log.exception("RunPod generation failed")

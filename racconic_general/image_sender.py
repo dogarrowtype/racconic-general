@@ -32,6 +32,8 @@ async def send_images(client, evt, result: GenerationResult) -> None:
                 info=ImageInfo(
                     mimetype="image/png",
                     size=len(image_data),
+                    width=result.width,
+                    height=result.height,
                 ),
             )
             contents.append((filename, content))
