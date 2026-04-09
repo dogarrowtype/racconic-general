@@ -65,9 +65,6 @@ _SIZE_PRESENT = re.compile(r"(?:^|\s)--size(?:\s+(\S+))?")
 # -s or -b not followed by a digit
 _VALUED_FLAG_NO_ARG = re.compile(r"(?:^|\s)(-s|-b)(?:\s+[^0-9]|\s*$)")
 
-# Stray dashes: bare -, --, ---, etc.
-_STRAY_DASH = re.compile(r"(?:^|\s)(-{1,3})(?:\s|$)")
-
 # Any flag-like token (for unknown flag detection)
 _FLAG_TOKEN = re.compile(r"(?:(?<=\s)|^)(--?[a-z][\w-]*)(?=\s|$)")
 
@@ -172,12 +169,6 @@ def parse(raw_input: str) -> GenerationRequest:
         flag = m.group(1)
         name = "style index" if flag == "-s" else "batch count"
         errors.append(f"`{flag}` needs a number — e.g. `{flag} 2` ({name}).")
-
-    # Stray dashes: bare -, --, ---
-    if not errors:
-        for m in _STRAY_DASH.finditer(text):
-            dashes = m.group(1)
-            errors.append(f"Stray `{dashes}` — not a valid flag.")
 
     if errors:
         return GenerationRequest(prompt_text="", errors=errors)

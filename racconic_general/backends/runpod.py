@@ -102,8 +102,8 @@ class RunPodBackend(ImageBackend):
             results = await asyncio.gather(*tasks, return_exceptions=True)
         else:
             results = []
-            for _ in range(batch):
-                async with self._queue_lock:
+            async with self._queue_lock:
+                for _ in range(batch):
                     try:
                         results.append(await self._generate_single(prompt, width, height, 1, api_key, worker_id))
                     except Exception as exc:

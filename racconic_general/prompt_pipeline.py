@@ -20,9 +20,14 @@ def clean_prompt(prompt: str) -> str:
     prompt = re.sub(r"_", " ", prompt)
     prompt = re.sub(r"\\", "", prompt)
 
-    # Drop lines that look like explanations
+    # Drop lines that look like explanations; strip leading bullet markers first
+    # so that "- golden fur, sharp claws" keeps its content instead of being dropped.
     lines = prompt.split("\n")
-    kept = [l for l in lines if not l.lstrip().startswith(("Here", "This", "I", "Note:", "-"))]
+    kept = []
+    for line in lines:
+        stripped = re.sub(r"^\s*[-*]\s+", "", line)  # remove leading bullet
+        if not stripped.lstrip().startswith(("Here", "This", "I", "Note:")):
+            kept.append(stripped)
     if kept:
         prompt = " ".join(kept)
     return prompt.strip()

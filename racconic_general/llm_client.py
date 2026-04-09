@@ -54,6 +54,9 @@ class LLMClient:
             try:
                 async with self.http.post(self.base_url, headers=headers, json=payload) as resp:
                     if resp.status == 429 or resp.status >= 500:
+                        if attempt >= self.max_retries:
+                            log.error("OpenRouter %s on final attempt, giving up", resp.status)
+                            return None
                         delay = random.uniform(1, 5)
                         log.warning(
                             "OpenRouter %s (attempt %d/%d), retrying in %.1fs",

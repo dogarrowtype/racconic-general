@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import re
 from typing import Optional
 
 from .types import StyleChunk
@@ -100,7 +101,7 @@ def build_style_string(
         all_tags = [t for c in chunks for t in c.tags]
         prompt_lower = raw_prompt.lower()
         for tag in all_tags:
-            if tag.lower() in prompt_lower:
+            if re.search(r"\b" + re.escape(tag.lower()) + r"\b", prompt_lower):
                 return ""
 
     tags = select_random(style_text)
