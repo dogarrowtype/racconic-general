@@ -44,7 +44,7 @@ async def send_images(client, evt, result: GenerationResult) -> None:
     sent = len(contents)
 
     if sent == 0:
-        await evt.respond(f"~Failed to upload all {failed} image(s). Check logs for details.")
+        await evt.reply(f"~Failed to upload all {failed} image(s). Check logs for details.")
         return
 
     # Build plain-text caption and attach it to the last image.
@@ -72,4 +72,4 @@ async def send_images(client, evt, result: GenerationResult) -> None:
     last_content["formatted_body"] = "<br>".join(html_parts)
 
     for _, content in contents:
-        await evt.respond(content)
+        await evt.reply(content)

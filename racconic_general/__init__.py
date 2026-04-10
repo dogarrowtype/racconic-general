@@ -128,7 +128,7 @@ class RacconicBot(Plugin):
                     self.log.warning("Failed to fetch replied-to event %s", reply_to)
 
         if not raw_input:
-            await evt.respond(
+            await evt.reply(
                 "~Usage: `!{prefix} [flags] <prompt text>` or reply to a message.\n"
                 "Try `!{prefix} help` for details.".format(prefix=self.config["command_prefix"])
             )
@@ -140,7 +140,7 @@ class RacconicBot(Plugin):
         if request.errors:
             prefix = self.config["command_prefix"]
             error_lines = "\n\n".join(f"- {e}" for e in request.errors)
-            await evt.respond(
+            await evt.reply(
                 f"~**Oops!** Something looks off:\n\n{error_lines}\n\n"
                 f"Try `!{prefix} help` for usage info."
             )
@@ -156,20 +156,20 @@ class RacconicBot(Plugin):
                     self.log.warning("Failed to fetch replied-to event %s", reply_to)
 
         if not request.prompt_text:
-            await evt.respond("~No prompt text provided. Provide text or reply to a message.")
+            await evt.reply("~No prompt text provided. Provide text or reply to a message.")
             return
 
         # Rate limit
         remaining = self._check_cooldown(evt.room_id)
         if remaining is not None:
-            await evt.respond(f"~Please wait {remaining:.0f}s before generating again.")
+            await evt.reply(f"~Please wait {remaining:.0f}s before generating again.")
             return
         self._room_cooldowns[evt.room_id] = time.monotonic()
 
         # Resolve backend
         backend_key, backend = self._resolve_backend(request.backend_name)
         if backend is None:
-            await evt.respond("~No image generation backends are enabled. Check config.")
+            await evt.reply("~No image generation backends are enabled. Check config.")
             return
 
         # Resolve size
@@ -201,12 +201,12 @@ class RacconicBot(Plugin):
 
             if result.error:
                 await self._try_react(evt, "\u274c")  # red X
-                await evt.respond(f"~Generation failed: {result.error}")
+                await evt.reply(f"~Generation failed: {result.error}")
                 return
 
             if not result.images:
                 await self._try_react(evt, "\u274c")
-                await evt.respond("~No images were generated.")
+                await evt.reply("~No images were generated.")
                 return
 
             await self._try_react(evt, "\u2705")  # green check
@@ -215,12 +215,12 @@ class RacconicBot(Plugin):
         except Exception:
             self.log.exception("Unhandled error during generation")
             await self._try_react(evt, "\u274c")
-            await evt.respond("~An unexpected error occurred. Check logs for details.")
+            await evt.reply("~An unexpected error occurred. Check logs for details.")
 
     @racc.subcommand(help="Show usage information")
     async def help(self, evt: MessageEvent) -> None:
         prefix = self.config["command_prefix"]
-        await evt.respond(
+        await evt.reply(
             f"~**Racconic Image Generator**\n\n"
             f"**How to use:**\n\n"
             f"`!{prefix} <prompt>` — describe what you want to see\n\n"
@@ -255,7 +255,7 @@ class RacconicBot(Plugin):
             if st is not None:
                 targets.append((backend_name, st))
             else:
-                await evt.respond(f"~Unknown backend: {backend_name}")
+                await evt.reply(f"~Unknown backend: {backend_name}")
                 return
         else:
             for key in ("nai", "runpod"):
@@ -263,7 +263,7 @@ class RacconicBot(Plugin):
                     targets.append((key, self.config.get(f"{key}.style_text", "") or ""))
 
         if not targets:
-            await evt.respond("~No backends enabled.")
+            await evt.reply("~No backends enabled.")
             return
 
         lines: list[str] = []
@@ -276,7 +276,7 @@ class RacconicBot(Plugin):
                 for idx, tags, weight in entries:
                     lines.append(f"  `{idx}`. {tags} (weight {weight})")
 
-        await evt.respond("\n\n".join(lines))
+        await evt.reply("\n\n".join(lines))
 
     @racc.subcommand(help="List LLM presets")
     async def presets(self, evt: MessageEvent) -> None:
@@ -286,7 +286,7 @@ class RacconicBot(Plugin):
         for name, p in presets.items():
             marker = " (default)" if name == default else ""
             lines.append(f"- **{name}**{marker}: model `{p['model']}`, temp {p.get('temperature', 1.0)}")
-        await evt.respond("\n\n".join(lines))
+        await evt.reply("\n\n".join(lines))
 
     @racc.subcommand(help="Show backend status")
     async def status(self, evt: MessageEvent) -> None:
@@ -297,4 +297,4 @@ class RacconicBot(Plugin):
             is_default = " (default)" if key == default else ""
             status = "enabled" if enabled else "disabled"
             lines.append(f"- **{key}**: {status}{is_default}")
-        await evt.respond("\n\n".join(lines))
+        await evt.reply("\n\n".join(lines))
