@@ -1,0 +1,22 @@
+# Local config — contains real API keys
+config.yaml
+
+# Dev scratch
+todo.md
+
+# Maubot build artifacts
+*.mbp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

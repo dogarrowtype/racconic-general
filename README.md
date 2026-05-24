@@ -180,6 +180,8 @@ runpod:
 
 The `comfyui_workflow_file` should point to an absolute filesystem path containing a ComfyUI workflow (API format) with `{prompt}` as a placeholder in the text input node. The plugin automatically randomises seeds and updates dimensions/batch size in latent image nodes.
 
+A minimal starting point is included as [`example_workflow.json`](example_workflow.json) — copy it somewhere on your maubot host, edit the `ckpt_name` and negative prompt to taste, and set `comfyui_workflow_file` to its absolute path.
+
 **Batch modes:**
 - `sequential` — Makes N parallel single-image requests (faster overall)
 - `native` — Single request with `batch_size=N` in the workflow (fewer API calls)
