@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import io
 import logging
 import math
@@ -42,9 +43,15 @@ class NovelAIBackend(ImageBackend):
         width: int,
         height: int,
         batch: int,
+        source_image: Optional[bytes] = None,
+        strength: Optional[float] = None,
+        noise: Optional[float] = None,
     ) -> GenerationResult:
         async with self._lock:
-            return await self._generate_locked(prompt, negative, width, height, batch)
+            return await self._generate_locked(
+                prompt, negative, width, height, batch,
+                source_image, strength, noise,
+            )
 
     async def _generate_locked(
         self,
@@ -53,6 +60,9 @@ class NovelAIBackend(ImageBackend):
         width: int,
         height: int,
         batch: int,
+        source_image: Optional[bytes] = None,
+        strength: Optional[float] = None,
+        noise: Optional[float] = None,
     ) -> GenerationResult:
         api_key = self.cfg.get("api_key", "")
         if not api_key:
@@ -65,10 +75,13 @@ class NovelAIBackend(ImageBackend):
 
         width, height, steps = _apply_anlas_guard(width, height, steps, max_pixels, max_steps)
 
+        is_img2img = source_image is not None
+        seed = _resolve_seed(self.cfg.get("seed", -1))
+
         payload = {
             "input": prompt,
             "model": self.cfg.get("model", "nai-diffusion-4-5-full"),
-            "action": "generate",
+            "action": "img2img" if is_img2img else "generate",
             "parameters": {
                 "params_version": 3,
                 "width": width,
@@ -76,7 +89,7 @@ class NovelAIBackend(ImageBackend):
                 "scale": self.cfg.get("scale", 5.0),
                 "sampler": self.cfg.get("sampler", "k_euler_ancestral"),
                 "steps": steps,
-                "seed": _resolve_seed(self.cfg.get("seed", -1)),
+                "seed": seed,
                 "n_samples": 1,
                 "ucPreset": self.cfg.get("uc_preset", 2),
                 "qualityToggle": self.cfg.get("quality_toggle", True),
@@ -112,6 +125,14 @@ class NovelAIBackend(ImageBackend):
                 "prefer_brownian": True,
             },
         }
+
+        if is_img2img:
+            resolved_strength = strength if strength is not None else self.cfg.get("img2img_strength", 0.70)
+            resolved_noise = noise if noise is not None else self.cfg.get("img2img_noise", 0.0)
+            payload["parameters"]["image"] = base64.b64encode(source_image).decode("ascii")
+            payload["parameters"]["strength"] = float(resolved_strength)
+            payload["parameters"]["noise"] = float(resolved_noise)
+            payload["parameters"]["extra_noise_seed"] = seed
 
         headers = {
             "Content-Type": "application/json",

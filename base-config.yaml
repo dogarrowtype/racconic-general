@@ -64,6 +64,11 @@ nai:
     style_text: ""
     prefix_prompt: ""
     suffix_prompt: ""
+    # img2img defaults (only used when -i/--img2img flag is set)
+    img2img_strength: 0.70       # denoise strength, range 0.01–0.99
+    img2img_noise: 0.0           # extra noise, range 0.0–0.99
+    # Seconds to wait for the follow-up image after `!racc -i <prompt>`
+    img2img_wait_seconds: 10
 
 # RunPod/ComfyUI Backend
 runpod:

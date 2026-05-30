@@ -30,6 +30,9 @@ class GenerationRequest:
     height: Optional[int] = None
     batch_count: int = 1
     is_raw: bool = False
+    is_img2img: bool = False
+    strength: Optional[float] = None
+    noise: Optional[float] = None
     errors: list[str] = field(default_factory=list)
 
 

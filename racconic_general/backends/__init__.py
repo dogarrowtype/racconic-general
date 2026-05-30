@@ -17,6 +17,9 @@ class ImageBackend(ABC):
         width: int,
         height: int,
         batch: int,
+        source_image: Optional[bytes] = None,
+        strength: Optional[float] = None,
+        noise: Optional[float] = None,
     ) -> GenerationResult:
         ...
 

@@ -61,6 +61,9 @@ class RunPodBackend(ImageBackend):
         width: int,
         height: int,
         batch: int,
+        source_image: Optional[bytes] = None,
+        strength: Optional[float] = None,
+        noise: Optional[float] = None,
     ) -> GenerationResult:
         api_key = self.cfg.get("api_key", "")
         worker_id = self.cfg.get("worker_id", "")

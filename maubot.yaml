@@ -1,10 +1,12 @@
 maubot: 0.1.0
 id: dog.racconic.general
-version: 0.1.4.1
+version: 0.1.5.2
 license: MIT
 modules:
   - racconic_general
 main_class: RacconicBot
 config: true
+dependencies:
+  - Pillow>=9.0
 extra_files:
   - base-config.yaml

@@ -20,14 +20,19 @@ _BACKEND_FLAGS = {
     "--runpod": "runpod", "-rp": "runpod",
 }
 
+_IMG2IMG_FLAGS = {"--img2img", "-i"}
+
 # Valued flag regexes (with leading boundary)
 _STYLE_PATTERN = re.compile(r"(?:^|\s)(?:--style|-s)\s+(\d+)")
 _SIZE_PATTERN = re.compile(r"(?:^|\s)(?:--size)\s+(\d{3,5})x(\d{3,5})")
 _BATCH_PATTERN = re.compile(r"(?:^|\s)(?:--batch|-b)\s+([1-4])")
+_STRENGTH_PATTERN = re.compile(r"(?:^|\s)--strength\s+(0?\.\d+|1\.0+|0|1)(?=\s|$)")
+_NOISE_PATTERN = re.compile(r"(?:^|\s)--noise\s+(0?\.\d+|0)(?=\s|$)")
 
 # All known flags
-_ALL_KNOWN_LONG = {"--dormouse", "--fossa", "--hippo", "--raw", "--nai", "--runpod", "--style", "--size", "--batch"}
-_ALL_KNOWN_SHORT = {"-d", "-f", "-h", "-r", "-n", "-rp", "-s", "-b"}
+_ALL_KNOWN_LONG = {"--dormouse", "--fossa", "--hippo", "--raw", "--nai", "--runpod",
+                   "--style", "--size", "--batch", "--img2img", "--strength", "--noise"}
+_ALL_KNOWN_SHORT = {"-d", "-f", "-h", "-r", "-n", "-rp", "-s", "-b", "-i"}
 _ALL_KNOWN_FLAGS = _ALL_KNOWN_LONG | _ALL_KNOWN_SHORT
 
 # -- error detection patterns ------------------------------------------------
@@ -36,7 +41,7 @@ _ALL_KNOWN_FLAGS = _ALL_KNOWN_LONG | _ALL_KNOWN_SHORT
 _DOUBLE_DASH_SHORT = {
     "--f": "-f (fossa)", "--d": "-d (dormouse)", "--h": "-h (hippo)",
     "--r": "-r (raw)", "--n": "-n (nai)", "--b": "-b N (batch)",
-    "--s": "-s N (style)",
+    "--s": "-s N (style)", "--i": "-i (img2img)",
 }
 
 # Single-dash long flags: -style → --style
@@ -44,6 +49,7 @@ _SINGLE_DASH_LONG = {
     "-style": "--style N", "-size": "--size WxH", "-batch": "--batch N",
     "-dormouse": "--dormouse", "-fossa": "--fossa", "-hippo": "--hippo",
     "-raw": "--raw", "-nai": "--nai", "-runpod": "--runpod",
+    "-img2img": "--img2img", "-strength": "--strength X.XX", "-noise": "--noise X.XX",
 }
 
 # Bare word + digit: s4, b3 → -s 4, -b 3
@@ -65,8 +71,21 @@ _SIZE_PRESENT = re.compile(r"(?:^|\s)--size(?:\s+(\S+))?")
 # -s or -b not followed by a digit
 _VALUED_FLAG_NO_ARG = re.compile(r"(?:^|\s)(-s|-b)(?:\s+[^0-9]|\s*$)")
 
+# --strength / --noise present but malformed
+_STRENGTH_PRESENT = re.compile(r"(?:^|\s)--strength(?:\s+(\S+))?")
+_NOISE_PRESENT = re.compile(r"(?:^|\s)--noise(?:\s+(\S+))?")
+# Missing-space variants: --strength0.7, --noise0.1
+_MISSING_SPACE_STRENGTH = re.compile(r"(?:^|\s)(--strength|--noise)(\d|\.)")
+
 # Any flag-like token (for unknown flag detection)
 _FLAG_TOKEN = re.compile(r"(?:(?<=\s)|^)(--?[a-z][\w-]*)(?=\s|$)")
+
+
+def _parse_float_arg(arg: str) -> Optional[float]:
+    try:
+        return float(arg)
+    except (ValueError, TypeError):
+        return None
 
 
 def _find_flag_matches(text: str, flags: dict[str, str | None]) -> list[tuple[str, str | None]]:
@@ -125,6 +144,11 @@ def parse(raw_input: str) -> GenerationRequest:
         flag, val = m.group(1), m.group(2)
         errors.append(f"`{flag}{val}` needs a space: `{flag} {val}`.")
 
+    # Missing space on --strength/--noise: --strength0.7
+    for m in _MISSING_SPACE_STRENGTH.finditer(text):
+        flag, val = m.group(1), m.group(2)
+        errors.append(f"`{flag}{val}…` needs a space — try `{flag} 0.70`.")
+
     # Spaced dash: "- s" → "-s"
     for m in _SPACED_DASH.finditer(text):
         letter = m.group(1)
@@ -170,6 +194,34 @@ def parse(raw_input: str) -> GenerationRequest:
         name = "style index" if flag == "-s" else "batch count"
         errors.append(f"`{flag}` needs a number — e.g. `{flag} 2` ({name}).")
 
+    # Malformed --strength: present but doesn't match valid float in (0,1]
+    if not _STRENGTH_PATTERN.search(text) and not _MISSING_SPACE_STRENGTH.search(text):
+        m = _STRENGTH_PRESENT.search(text)
+        if m:
+            arg = m.group(1) or ""
+            if not arg:
+                errors.append("`--strength` needs a value — e.g. `--strength 0.70` (range 0.01–0.99).")
+            else:
+                v = _parse_float_arg(arg)
+                if v is None:
+                    errors.append(f"`--strength {arg}` is not a valid number — e.g. `--strength 0.70`.")
+                elif v <= 0.0 or v > 1.0:
+                    errors.append(f"`--strength {arg}` is out of range — must be > 0 and ≤ 1.")
+
+    # Malformed --noise: present but doesn't match valid float in [0,1)
+    if not _NOISE_PATTERN.search(text) and not _MISSING_SPACE_STRENGTH.search(text):
+        m = _NOISE_PRESENT.search(text)
+        if m:
+            arg = m.group(1) or ""
+            if not arg:
+                errors.append("`--noise` needs a value — e.g. `--noise 0.0` (range 0–0.99).")
+            else:
+                v = _parse_float_arg(arg)
+                if v is None:
+                    errors.append(f"`--noise {arg}` is not a valid number — e.g. `--noise 0.10`.")
+                elif v < 0.0 or v >= 1.0:
+                    errors.append(f"`--noise {arg}` is out of range — must be ≥ 0 and < 1.")
+
     if errors:
         return GenerationRequest(prompt_text="", errors=errors)
 
@@ -203,6 +255,25 @@ def parse(raw_input: str) -> GenerationRequest:
     elif batch_matches:
         m = batch_matches[0]
         batch_count = int(m.group(1))
+        text = text[:m.start()] + text[m.end():]
+
+    strength: Optional[float] = None
+    noise: Optional[float] = None
+
+    strength_matches = list(_STRENGTH_PATTERN.finditer(text))
+    if len(strength_matches) > 1:
+        errors.append("Multiple `--strength` flags — pick one.")
+    elif strength_matches:
+        m = strength_matches[0]
+        strength = float(m.group(1))
+        text = text[:m.start()] + text[m.end():]
+
+    noise_matches = list(_NOISE_PATTERN.finditer(text))
+    if len(noise_matches) > 1:
+        errors.append("Multiple `--noise` flags — pick one.")
+    elif noise_matches:
+        m = noise_matches[0]
+        noise = float(m.group(1))
         text = text[:m.start()] + text[m.end():]
 
     if errors:
@@ -241,6 +312,27 @@ def parse(raw_input: str) -> GenerationRequest:
         backend_name = backend_val
         text = re.compile(r"(?:(?<=\s)|^)" + re.escape(flag) + r"(?=\s|$)").sub("", text, count=1)
 
+    # Extract -i / --img2img boolean (count occurrences; reject duplicates)
+    is_img2img = False
+    img_flag_hits: list[str] = []
+    for flag in _IMG2IMG_FLAGS:
+        pattern = re.compile(r"(?:(?<=\s)|^)" + re.escape(flag) + r"(?=\s|$)")
+        for _ in pattern.finditer(text):
+            img_flag_hits.append(flag)
+    if len(img_flag_hits) > 1:
+        errors.append("Multiple `-i`/`--img2img` flags — pick one.")
+    elif img_flag_hits:
+        is_img2img = True
+        for flag in set(img_flag_hits):
+            text = re.compile(r"(?:(?<=\s)|^)" + re.escape(flag) + r"(?=\s|$)").sub("", text, count=1)
+
+    # Cross-validate img2img combinations
+    if is_img2img and backend_name == "runpod":
+        errors.append("`-i`/`--img2img` requires NovelAI — drop `-rp`/`--runpod` or use `-n`/`--nai`.")
+    if not is_img2img and (strength is not None or noise is not None):
+        offender = "--strength" if strength is not None else "--noise"
+        errors.append(f"`{offender}` only applies with `-i`/`--img2img`.")
+
     # ── Phase 4: check for unknown leftover flags ────────────────────────
 
     for m in _FLAG_TOKEN.finditer(text):
@@ -265,4 +357,7 @@ def parse(raw_input: str) -> GenerationRequest:
         height=height,
         batch_count=batch_count,
         is_raw=is_raw,
+        is_img2img=is_img2img,
+        strength=strength,
+        noise=noise,
     )

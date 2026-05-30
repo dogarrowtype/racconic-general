@@ -47,6 +47,9 @@ class Config(BaseProxyConfig):
         helper.copy("nai.style_text")
         helper.copy("nai.prefix_prompt")
         helper.copy("nai.suffix_prompt")
+        helper.copy("nai.img2img_strength")
+        helper.copy("nai.img2img_noise")
+        helper.copy("nai.img2img_wait_seconds")
 
         # RunPod backend
         helper.copy("runpod.enabled")
