@@ -8,6 +8,13 @@ rate_limit_seconds: 10
 # Leave empty to allow all rooms.
 room_whitelist: []
 
+# Emoji-reaction trigger — react to a text message with this emoji to generate
+# from its text (same as replying with !racc). Set enabled: false to disable.
+# Keep this distinct from the bot's progress reactions (⏳ ✅ ❌).
+reaction_trigger:
+  enabled: true
+  emoji: "🎨"
+
 # LLM (OpenRouter)
 llm:
     api_key: ""

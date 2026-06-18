@@ -12,6 +12,10 @@ class Config(BaseProxyConfig):
         helper.copy("rate_limit_seconds")
         helper.copy("room_whitelist")
 
+        # Emoji-reaction trigger
+        helper.copy("reaction_trigger.enabled")
+        helper.copy("reaction_trigger.emoji")
+
         # LLM settings
         helper.copy("llm.api_key")
         helper.copy("llm.base_url")

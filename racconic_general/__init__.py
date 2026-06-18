@@ -352,6 +352,59 @@ class RacconicBot(Plugin):
             await self._try_react(evt, "\u274c")
             await evt.reply("~An unexpected error occurred. Check logs for details.")
 
+    # -- reaction trigger ----------------------------------------------------
+
+    @event.on(EventType.REACTION)
+    async def _on_reaction(self, evt) -> None:
+        """React to a text message with the configured emoji to generate from it.
+
+        This is the reply-to flow triggered by a reaction: the reacted-to message
+        is fetched and passed straight into the generation pipeline, so every reply
+        and progress reaction lands on that original message.
+        """
+        if not self.config["reaction_trigger.enabled"]:
+            return
+        if evt.sender == self.client.mxid:  # ignore the bot's own reactions
+            return
+        if not self._is_room_allowed(evt.room_id):
+            return
+
+        rel = getattr(evt.content, "relates_to", None)
+        if rel is None:
+            return
+        emoji = getattr(rel, "key", None)
+        target_id = getattr(rel, "event_id", None)
+        if not emoji or not target_id:
+            return
+        if emoji != self.config["reaction_trigger.emoji"]:
+            return
+
+        try:
+            target = await self.client.get_event(evt.room_id, target_id)
+        except Exception:
+            self.log.warning("reaction trigger: failed to fetch target %s", target_id)
+            return
+        if target is None:
+            return
+
+        # Text-only for now: ignore image targets (i2i-via-reaction out of scope).
+        if getattr(target.content, "msgtype", None) == MessageType.IMAGE:
+            return
+
+        prompt = (getattr(target.content, "body", "") or "").strip()
+        if not prompt:
+            return
+
+        request = input_parser.parse(prompt)
+        if await self._reject_on_errors(target, request):
+            return
+        if not request.prompt_text:
+            return
+        if not await self._claim_cooldown(target):
+            return
+
+        await self._run_generation(target, request)
+
     # -- passive image listener ----------------------------------------------
 
     @event.on(EventType.ROOM_MESSAGE)
@@ -413,6 +466,7 @@ class RacconicBot(Plugin):
             f"`!{prefix} <prompt>` — describe what you want to see\n\n"
             f"`!{prefix} -f a raccoon eating pizza` — use a preset + your prompt\n\n"
             f"You can also reply to any message with `!{prefix}` to use that message as the prompt.\n\n"
+            f"Or react to any text message with {self.config['reaction_trigger.emoji']} to generate from it.\n\n"
             f"**Presets** (changes how the AI rewrites your prompt):\n\n"
             f"`-d` or `--dormouse` — dormouse style\n\n"
             f"`-f` or `--fossa` — fossa style\n\n"

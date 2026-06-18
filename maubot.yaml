@@ -1,6 +1,6 @@
 maubot: 0.1.0
 id: dog.racconic.general
-version: 0.1.5.2
+version: 0.1.6.1
 license: MIT
 modules:
   - racconic_general
